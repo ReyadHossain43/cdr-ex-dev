@@ -37,13 +37,15 @@ export class SqliteSubscriberRepository implements SubscriberRepository {
     return rowToSubscriber(row);
   }
 
-  async listByEvent(event: string): Promise<Subscriber[]> {
+  async *streamByEvent(event: string): AsyncIterable<Subscriber> {
     const rows = this.sqlite.all<{
       id: string;
       event: string;
       url: string;
       created_at: string;
     }>(`SELECT id, event, url, created_at FROM subscribers WHERE event = ?`, [event]);
-    return rows.map(rowToSubscriber);
+    for (const row of rows) {
+      yield rowToSubscriber(row);
+    }
   }
 }

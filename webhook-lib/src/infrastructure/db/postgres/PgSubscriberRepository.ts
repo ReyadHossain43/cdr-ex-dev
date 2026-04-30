@@ -6,7 +6,7 @@ export class PgSubscriberRepository implements SubscriberRepository {
     throw new Error('PgSubscriberRepository is not implemented yet.');
   }
 
-  async listByEvent(_event: string): Promise<Subscriber[]> {
+  async *streamByEvent(_event: string): AsyncIterable<Subscriber> {
     throw new Error('PgSubscriberRepository is not implemented yet.');
   }
 }

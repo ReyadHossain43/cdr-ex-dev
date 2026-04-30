@@ -19,14 +19,33 @@ export class WebhookService {
   }
 
   async emit<T = unknown>(event: string, payload: T): Promise<void> {
-    const subs = await this.subscribers.listByEvent(event);
-    if (subs.length === 0) return;
-    const uniqueSubs = Array.from(new Map(subs.map((sub) => [sub.url, sub])).values());
-
     const now = new Date();
-    const jobs = uniqueSubs.map((sub) => {
+    const seenUrls = new Set<string>();
+    let batch: { id: string; job: ReturnType<typeof createPendingJob> }[] = [];
+
+    const flushBatch = async (): Promise<void> => {
+      if (batch.length === 0) return;
+      const insertResults = await Promise.allSettled(batch.map(({ job }) => this.jobs.create(job)));
+      const enqueuePromises: Promise<void>[] = [];
+
+      for (let resultIndex = 0; resultIndex < insertResults.length; resultIndex += 1) {
+        if (insertResults[resultIndex]?.status !== 'fulfilled') continue;
+        enqueuePromises.push(this.queue.enqueue(batch[resultIndex].id));
+      }
+
+      if (enqueuePromises.length > 0) {
+        await Promise.all(enqueuePromises);
+      }
+
+      batch = [];
+    };
+
+    for await (const sub of this.subscribers.streamByEvent(event)) {
+      if (seenUrls.has(sub.url)) continue;
+      seenUrls.add(sub.url);
+
       const id = randomUUID();
-      return {
+      batch.push({
         id,
         job: createPendingJob({
           id,
@@ -36,22 +55,13 @@ export class WebhookService {
           maxAttempts: this.maxDeliveryAttempts,
           now,
         }),
-      };
-    });
+      });
 
-    for (let index = 0; index < jobs.length; index += ENQUEUE_BATCH_SIZE) {
-      const batch = jobs.slice(index, index + ENQUEUE_BATCH_SIZE);
-      const insertResults = await Promise.allSettled(batch.map(({ job }) => this.jobs.create(job)));
-
-      const enqueuePromises: Promise<void>[] = [];
-      for (let resultIndex = 0; resultIndex < insertResults.length; resultIndex += 1) {
-        if (insertResults[resultIndex]?.status !== 'fulfilled') continue;
-        enqueuePromises.push(this.queue.enqueue(batch[resultIndex].id));
-      }
-
-      if (enqueuePromises.length > 0) {
-        await Promise.all(enqueuePromises);
+      if (batch.length >= ENQUEUE_BATCH_SIZE) {
+        await flushBatch();
       }
     }
+
+    await flushBatch();
   }
 }
