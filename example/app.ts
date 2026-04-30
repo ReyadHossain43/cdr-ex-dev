@@ -19,15 +19,20 @@ async function main() {
   const webhooks = await createWebhooks({
     sqlitePath: dbPath,
     maxDeliveryAttempts: 6,
+    deliveryWorkers: 2,
     queue: useBullMq
       ? {
           type: "bullmq",
           options: {
             connection: redisUrl,
             queueName: "webhook-lib-example",
+            workerConcurrency: 8,
           },
         }
-      : { type: "memory", options: { concurrency: 4, pollIntervalMs: 150 } },
+      : {
+          type: "memory",
+          options: { concurrency: 4, pollIntervalMs: 150, workerCount: 2 },
+        },
   });
 
   await webhooks.register("order.created", hookUrl);

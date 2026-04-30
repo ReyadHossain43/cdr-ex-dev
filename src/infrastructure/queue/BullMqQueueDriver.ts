@@ -1,6 +1,10 @@
 import { Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
-import type { JobHandler, QueueDriver } from "../../core/ports/QueueDriver.js";
+import type {
+  JobHandler,
+  QueueDriver,
+  WorkerStartOptions,
+} from "../../core/ports/QueueDriver.js";
 import type { BullMqQueueOptions } from "../../types/index.js";
 
 const DEFAULT_NAME = "webhook-deliveries";
@@ -8,11 +12,18 @@ const DEFAULT_NAME = "webhook-deliveries";
 export class BullMqQueueDriver implements QueueDriver {
   private readonly connection: InstanceType<typeof Redis>;
   private readonly queue: Queue;
-  private worker: Worker | null = null;
+  private workers: Worker[] = [];
   private readonly queueName: string;
+  private readonly workerConcurrency: number;
+  private readonly defaultWorkerCount: number;
 
   constructor(private readonly options: BullMqQueueOptions) {
     this.queueName = options.queueName ?? DEFAULT_NAME;
+    this.workerConcurrency = Math.max(
+      1,
+      Math.trunc(options.workerConcurrency ?? 8),
+    );
+    this.defaultWorkerCount = Math.max(1, Math.trunc(options.workerCount ?? 1));
     this.connection =
       typeof options.connection === "string"
         ? new Redis(options.connection)
@@ -32,22 +43,33 @@ export class BullMqQueueDriver implements QueueDriver {
     );
   }
 
-  async startWorker(handler: JobHandler): Promise<void> {
-    const conn = this.connection.duplicate();
-    this.worker = new Worker(
-      this.queueName,
-      async (job) => {
-        const id = (job.data as { jobId: string }).jobId;
-        await handler(id);
-      },
-      { connection: conn, concurrency: 8 },
-    );
+  async startWorker(
+    handler: JobHandler,
+    options?: WorkerStartOptions,
+  ): Promise<void> {
+    if (this.workers.length > 0) return;
+    const requested = options?.workerCount ?? this.defaultWorkerCount;
+    const workerCount = Math.max(1, Math.trunc(requested));
+    const nextWorkers: Worker[] = [];
+    for (let index = 0; index < workerCount; index += 1) {
+      const conn = this.connection.duplicate();
+      const worker = new Worker(
+        this.queueName,
+        async (job) => {
+          const id = (job.data as { jobId: string }).jobId;
+          await handler(id);
+        },
+        { connection: conn, concurrency: this.workerConcurrency },
+      );
+      nextWorkers.push(worker);
+    }
+    this.workers = nextWorkers;
   }
 
   async stopWorker(): Promise<void> {
-    if (this.worker) {
-      await this.worker.close();
-      this.worker = null;
+    if (this.workers.length > 0) {
+      await Promise.all(this.workers.map((worker) => worker.close()));
+      this.workers = [];
     }
     await this.queue.close();
     await this.connection.quit();

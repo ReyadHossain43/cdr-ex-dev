@@ -9,16 +9,20 @@ export type WebhookJobStatus =
 export interface MemoryQueueOptions {
   concurrency?: number;
   pollIntervalMs?: number;
+  workerCount?: number;
 }
 
 export interface BullMqQueueOptions {
   connection: RedisOptions | string;
   queueName?: string;
+  workerConcurrency?: number;
+  workerCount?: number;
 }
 
 export interface CreateWebhooksOptions {
   sqlitePath: string;
   maxDeliveryAttempts?: number;
+  deliveryWorkers?: number;
   queue:
     | { type: "memory"; options?: MemoryQueueOptions }
     | { type: "bullmq"; options: BullMqQueueOptions };

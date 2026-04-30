@@ -11,6 +11,7 @@ import { createWebhooks } from "webhook-lib";
 
 const webhooks = await createWebhooks({
   sqlitePath: "./data/webhooks.sqlite",
+  deliveryWorkers: 2,
   queue: { type: "memory", options: { concurrency: 4 } },
 });
 
@@ -53,6 +54,12 @@ USE_BULLMQ=1 REDIS_URL=redis://127.0.0.1:6379 npm run example:app
 ```
 
 Optional: `HOOK_URL=http://127.0.0.1:4010/other` if you change the receiver path/port (`RECEIVER_PORT` on the receiver script).
+
+## Worker scaling
+
+- `deliveryWorkers` controls how many queue workers are started in-process (default `1`).
+- For memory queue, `queue.options.concurrency` is the in-flight limit per process and `workerCount` can also be set under `queue.options`.
+- For BullMQ queue, use `queue.options.workerCount` and `queue.options.workerConcurrency` to tune parallelism per process.
 
 ## Build the library
 
