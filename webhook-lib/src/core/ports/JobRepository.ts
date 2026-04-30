@@ -5,6 +5,7 @@ export interface JobRepository {
   findById(id: string): Promise<WebhookJob | null>;
   claimPending(id: string, now: Date): Promise<boolean>;
   save(job: WebhookJob): Promise<void>;
+  archiveCompleted(id: string): Promise<void>;
   listRecoverableJobIds(limit?: number): Promise<string[]>;
   resetStaleProcessing(olderThanMs: number): Promise<number>;
 }

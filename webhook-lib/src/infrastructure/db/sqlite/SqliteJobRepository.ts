@@ -111,6 +111,26 @@ export class SqliteJobRepository implements JobRepository {
     );
   }
 
+  async archiveCompleted(id: string): Promise<void> {
+    this.sqlite.runMutating(
+      `INSERT OR IGNORE INTO webhook_job_archives (
+          id, event, subscriber_url, payload_json, status, attempts, max_attempts,
+          next_attempt_at, created_at, updated_at, last_error, archived_at
+        )
+       SELECT
+         id, event, subscriber_url, payload_json, status, attempts, max_attempts,
+         next_attempt_at, created_at, updated_at, last_error, ?
+       FROM webhook_jobs
+       WHERE id = ? AND status IN ('delivered', 'failed')`,
+      [new Date().toISOString(), id],
+    );
+    this.sqlite.runMutating(
+      `DELETE FROM webhook_jobs
+       WHERE id = ? AND status IN ('delivered', 'failed')`,
+      [id],
+    );
+  }
+
   async listRecoverableJobIds(limit = 1000): Promise<string[]> {
     const now = new Date().toISOString();
     const rows = this.sqlite.all<{ id: string }>(

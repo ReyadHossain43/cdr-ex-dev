@@ -18,6 +18,10 @@ export class PgJobRepository implements JobRepository {
     throw new Error('PgJobRepository is not implemented yet.');
   }
 
+  async archiveCompleted(_id: string): Promise<void> {
+    throw new Error('PgJobRepository is not implemented yet.');
+  }
+
   async listRecoverableJobIds(_limit?: number): Promise<string[]> {
     throw new Error('PgJobRepository is not implemented yet.');
   }

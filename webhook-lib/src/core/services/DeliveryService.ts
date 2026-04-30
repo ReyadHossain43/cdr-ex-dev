@@ -46,6 +46,7 @@ export class DeliveryService {
         updatedAt: after,
         lastError: null,
       });
+      await this.jobs.archiveCompleted(jobId);
       return;
     }
 
@@ -61,6 +62,7 @@ export class DeliveryService {
         lastError: err,
         nextAttemptAt: null,
       });
+      await this.jobs.archiveCompleted(jobId);
       return;
     }
 
