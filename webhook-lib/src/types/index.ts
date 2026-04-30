@@ -1,6 +1,10 @@
-import type { RedisOptions } from 'ioredis';
+import type { RedisOptions } from "ioredis";
 
-export type WebhookJobStatus = 'pending' | 'processing' | 'delivered' | 'failed';
+export type WebhookJobStatus =
+  | "pending"
+  | "processing"
+  | "delivered"
+  | "failed";
 
 export interface MemoryQueueOptions {
   concurrency?: number;
@@ -16,8 +20,8 @@ export interface CreateWebhooksOptions {
   sqlitePath: string;
   maxDeliveryAttempts?: number;
   queue:
-    | { type: 'memory'; options?: MemoryQueueOptions }
-    | { type: 'bullmq'; options: BullMqQueueOptions };
+    | { type: "memory"; options?: MemoryQueueOptions }
+    | { type: "bullmq"; options: BullMqQueueOptions };
   httpTimeoutMs?: number;
 }
 

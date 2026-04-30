@@ -1,5 +1,5 @@
-import type { JobHandler, QueueDriver } from '../../core/ports/QueueDriver.js';
-import { createIntervalWorker } from './Worker.js';
+import type { JobHandler, QueueDriver } from "../../core/ports/QueueDriver.js";
+import { createIntervalWorker } from "./Worker.js";
 
 type BacklogItem = { jobId: string; runAt: number };
 

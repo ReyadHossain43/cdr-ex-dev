@@ -1,17 +1,17 @@
-import { existsSync } from 'node:fs';
-import { readFileSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import initSqlJs, { type Database } from 'sql.js';
+import { existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import initSqlJs, { type Database } from "sql.js";
 
 const nodeRequire = createRequire(import.meta.url);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export function defaultSqliteMigrationPath(): string {
-  return join(__dirname, '../../../../migrations/sqlite/init.sql');
+  return join(__dirname, "../../../../migrations/sqlite/init.sql");
 }
 
 export class SqliteClient {
@@ -24,13 +24,15 @@ export class SqliteClient {
     filePath: string,
     migrationSqlPath: string = defaultSqliteMigrationPath(),
   ): Promise<SqliteClient> {
-    const sqlJsEntry = dirname(nodeRequire.resolve('sql.js'));
-    const SQL = await initSqlJs({ locateFile: (file) => join(sqlJsEntry, file) });
+    const sqlJsEntry = dirname(nodeRequire.resolve("sql.js"));
+    const SQL = await initSqlJs({
+      locateFile: (file) => join(sqlJsEntry, file),
+    });
     const dir = dirname(filePath);
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
     const buf = existsSync(filePath) ? await readFile(filePath) : undefined;
     const db = buf ? new SQL.Database(buf) : new SQL.Database();
-    const sql = readFileSync(migrationSqlPath, 'utf8');
+    const sql = readFileSync(migrationSqlPath, "utf8");
     db.exec(sql);
     const client = new SqliteClient(filePath, db);
     await client.persist();
@@ -52,7 +54,10 @@ export class SqliteClient {
     return n;
   }
 
-  get<T extends Record<string, unknown>>(sql: string, params: unknown[] = []): T | undefined {
+  get<T extends Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = [],
+  ): T | undefined {
     const stmt = this.db.prepare(sql);
     stmt.bind(params as never[]);
     if (!stmt.step()) {
@@ -64,7 +69,10 @@ export class SqliteClient {
     return row;
   }
 
-  all<T extends Record<string, unknown>>(sql: string, params: unknown[] = []): T[] {
+  all<T extends Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = [],
+  ): T[] {
     const stmt = this.db.prepare(sql);
     stmt.bind(params as never[]);
     const rows: T[] = [];

@@ -7,15 +7,15 @@ Persistence uses **[sql.js](https://github.com/sql-js/sql.js)** (SQLite compiled
 ## Quick start
 
 ```typescript
-import { createWebhooks } from 'webhook-lib';
+import { createWebhooks } from "webhook-lib";
 
 const webhooks = await createWebhooks({
-  sqlitePath: './data/webhooks.sqlite',
-  queue: { type: 'memory', options: { concurrency: 4 } },
+  sqlitePath: "./data/webhooks.sqlite",
+  queue: { type: "memory", options: { concurrency: 4 } },
 });
 
-await webhooks.register('order.created', 'https://example.com/hook');
-await webhooks.emit('order.created', { orderId: 123 });
+await webhooks.register("order.created", "https://example.com/hook");
+await webhooks.emit("order.created", { orderId: 123 });
 ```
 
 `emit` persists one row per subscriber delivery attempt, enqueues job IDs, and returns after enqueue—not after HTTP completes.

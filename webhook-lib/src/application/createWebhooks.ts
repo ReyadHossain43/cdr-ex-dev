@@ -1,7 +1,9 @@
-import type { CreateWebhooksOptions, WebhooksApi } from '../types/index.js';
-import { buildContainer } from './container.js';
+import type { CreateWebhooksOptions, WebhooksApi } from "../types/index.js";
+import { buildContainer } from "./container.js";
 
-export async function createWebhooks(options: CreateWebhooksOptions): Promise<WebhooksApi> {
+export async function createWebhooks(
+  options: CreateWebhooksOptions,
+): Promise<WebhooksApi> {
   const c = await buildContainer(options);
 
   await c.queue.startWorker((jobId) => c.delivery.processJob(jobId));

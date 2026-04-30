@@ -1,7 +1,7 @@
-import type { WebhookJob } from '../../../core/entities/WebhookJob.js';
-import type { JobRepository } from '../../../core/ports/JobRepository.js';
-import type { WebhookJobStatus } from '../../../types/index.js';
-import type { SqliteClient } from './SqliteClient.js';
+import type { WebhookJob } from "../../../core/entities/WebhookJob.js";
+import type { JobRepository } from "../../../core/ports/JobRepository.js";
+import type { WebhookJobStatus } from "../../../types/index.js";
+import type { SqliteClient } from "./SqliteClient.js";
 
 function rowToJob(row: {
   id: string;
@@ -24,7 +24,9 @@ function rowToJob(row: {
     status: row.status as WebhookJobStatus,
     attempts: Number(row.attempts),
     maxAttempts: Number(row.max_attempts),
-    nextAttemptAt: row.next_attempt_at ? new Date(String(row.next_attempt_at)) : null,
+    nextAttemptAt: row.next_attempt_at
+      ? new Date(String(row.next_attempt_at))
+      : null,
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
     lastError: row.last_error == null ? null : String(row.last_error),

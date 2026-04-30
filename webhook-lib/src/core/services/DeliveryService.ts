@@ -1,8 +1,8 @@
-import type { WebhookJob } from '../entities/WebhookJob.js';
-import type { JobRepository } from '../ports/JobRepository.js';
-import type { QueueDriver } from '../ports/QueueDriver.js';
-import type { WebhookHttpClient } from '../ports/WebhookHttpClient.js';
-import { computeBackoffMs } from '../utils/backoff.js';
+import type { WebhookJob } from "../entities/WebhookJob.js";
+import type { JobRepository } from "../ports/JobRepository.js";
+import type { QueueDriver } from "../ports/QueueDriver.js";
+import type { WebhookHttpClient } from "../ports/WebhookHttpClient.js";
+import { computeBackoffMs } from "../utils/backoff.js";
 
 export class DeliveryService {
   constructor(
@@ -15,8 +15,8 @@ export class DeliveryService {
   async processJob(jobId: string): Promise<void> {
     const job = await this.jobs.findById(jobId);
     if (!job) return;
-    if (job.status === 'delivered' || job.status === 'failed') return;
-    if (job.status === 'processing') return;
+    if (job.status === "delivered" || job.status === "failed") return;
+    if (job.status === "processing") return;
 
     const now = new Date();
     if (job.nextAttemptAt && job.nextAttemptAt > now) {
@@ -27,7 +27,11 @@ export class DeliveryService {
 
     const claimed = await this.jobs.claimPending(jobId, now);
     if (!claimed) return;
-    const processing: WebhookJob = { ...job, status: 'processing', updatedAt: now };
+    const processing: WebhookJob = {
+      ...job,
+      status: "processing",
+      updatedAt: now,
+    };
 
     const result = await this.http.deliver({
       url: processing.subscriberUrl,
@@ -41,7 +45,7 @@ export class DeliveryService {
     if (result.ok) {
       await this.jobs.save({
         ...processing,
-        status: 'delivered',
+        status: "delivered",
         attempts: processing.attempts + 1,
         updatedAt: after,
         lastError: null,
@@ -56,7 +60,7 @@ export class DeliveryService {
     if (nextAttempts >= processing.maxAttempts) {
       await this.jobs.save({
         ...processing,
-        status: 'failed',
+        status: "failed",
         attempts: nextAttempts,
         updatedAt: after,
         lastError: err,
@@ -69,7 +73,7 @@ export class DeliveryService {
     const delayMs = computeBackoffMs(nextAttempts);
     await this.jobs.save({
       ...processing,
-      status: 'pending',
+      status: "pending",
       attempts: nextAttempts,
       updatedAt: after,
       lastError: err,

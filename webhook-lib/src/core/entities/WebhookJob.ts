@@ -1,4 +1,4 @@
-import type { WebhookJobStatus } from '../../types/index.js';
+import type { WebhookJobStatus } from "../../types/index.js";
 
 export interface WebhookJob {
   id: string;
@@ -27,7 +27,7 @@ export function createPendingJob(input: {
     event: input.event,
     subscriberUrl: input.subscriberUrl,
     payload: input.payload,
-    status: 'pending',
+    status: "pending",
     attempts: 0,
     maxAttempts: input.maxAttempts,
     nextAttemptAt: null,

@@ -1,4 +1,4 @@
-import type { WebhookJob } from '../entities/WebhookJob.js';
+import type { WebhookJob } from "../entities/WebhookJob.js";
 
 export interface JobRepository {
   create(job: WebhookJob): Promise<void>;

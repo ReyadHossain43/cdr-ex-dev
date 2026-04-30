@@ -1,9 +1,9 @@
-import { Queue, Worker } from 'bullmq';
-import { Redis } from 'ioredis';
-import type { JobHandler, QueueDriver } from '../../core/ports/QueueDriver.js';
-import type { BullMqQueueOptions } from '../../types/index.js';
+import { Queue, Worker } from "bullmq";
+import { Redis } from "ioredis";
+import type { JobHandler, QueueDriver } from "../../core/ports/QueueDriver.js";
+import type { BullMqQueueOptions } from "../../types/index.js";
 
-const DEFAULT_NAME = 'webhook-deliveries';
+const DEFAULT_NAME = "webhook-deliveries";
 
 export class BullMqQueueDriver implements QueueDriver {
   private readonly connection: InstanceType<typeof Redis>;
@@ -14,7 +14,7 @@ export class BullMqQueueDriver implements QueueDriver {
   constructor(private readonly options: BullMqQueueOptions) {
     this.queueName = options.queueName ?? DEFAULT_NAME;
     this.connection =
-      typeof options.connection === 'string'
+      typeof options.connection === "string"
         ? new Redis(options.connection)
         : new Redis(options.connection);
     this.queue = new Queue(this.queueName, { connection: this.connection });
@@ -22,7 +22,7 @@ export class BullMqQueueDriver implements QueueDriver {
 
   async enqueue(jobId: string, delayMs = 0): Promise<void> {
     await this.queue.add(
-      'deliver',
+      "deliver",
       { jobId },
       {
         delay: delayMs,
@@ -58,7 +58,7 @@ export class BullMqQueueDriver implements QueueDriver {
     if (ids.length === 0) return;
     await this.queue.addBulk(
       ids.map((jobId) => ({
-        name: 'deliver',
+        name: "deliver",
         data: { jobId },
         opts: { removeOnComplete: true, attempts: 1 },
       })),

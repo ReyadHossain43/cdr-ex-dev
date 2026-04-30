@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
-import type { Subscriber } from '../../../core/entities/Subscriber.js';
-import type { SubscriberRepository } from '../../../core/ports/SubscriberRepository.js';
-import type { SqliteClient } from './SqliteClient.js';
+import { randomUUID } from "node:crypto";
+import type { Subscriber } from "../../../core/entities/Subscriber.js";
+import type { SubscriberRepository } from "../../../core/ports/SubscriberRepository.js";
+import type { SqliteClient } from "./SqliteClient.js";
 
 function rowToSubscriber(row: {
   id: string;
@@ -32,8 +32,11 @@ export class SqliteSubscriberRepository implements SubscriberRepository {
       event: string;
       url: string;
       created_at: string;
-    }>(`SELECT id, event, url, created_at FROM subscribers WHERE event = ? AND url = ?`, [event, url]);
-    if (!row) throw new Error('subscriber insert failed');
+    }>(
+      `SELECT id, event, url, created_at FROM subscribers WHERE event = ? AND url = ?`,
+      [event, url],
+    );
+    if (!row) throw new Error("subscriber insert failed");
     return rowToSubscriber(row);
   }
 
@@ -43,7 +46,9 @@ export class SqliteSubscriberRepository implements SubscriberRepository {
       event: string;
       url: string;
       created_at: string;
-    }>(`SELECT id, event, url, created_at FROM subscribers WHERE event = ?`, [event]);
+    }>(`SELECT id, event, url, created_at FROM subscribers WHERE event = ?`, [
+      event,
+    ]);
     for (const row of rows) {
       yield rowToSubscriber(row);
     }

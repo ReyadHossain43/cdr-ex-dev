@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto';
-import { createPendingJob } from '../entities/WebhookJob.js';
-import type { JobRepository } from '../ports/JobRepository.js';
-import type { QueueDriver } from '../ports/QueueDriver.js';
-import type { SubscriberRepository } from '../ports/SubscriberRepository.js';
+import { randomUUID } from "node:crypto";
+import { createPendingJob } from "../entities/WebhookJob.js";
+import type { JobRepository } from "../ports/JobRepository.js";
+import type { QueueDriver } from "../ports/QueueDriver.js";
+import type { SubscriberRepository } from "../ports/SubscriberRepository.js";
 
 const ENQUEUE_BATCH_SIZE = 200;
 
@@ -25,11 +25,17 @@ export class WebhookService {
 
     const flushBatch = async (): Promise<void> => {
       if (batch.length === 0) return;
-      const insertResults = await Promise.allSettled(batch.map(({ job }) => this.jobs.create(job)));
+      const insertResults = await Promise.allSettled(
+        batch.map(({ job }) => this.jobs.create(job)),
+      );
       const enqueuePromises: Promise<void>[] = [];
 
-      for (let resultIndex = 0; resultIndex < insertResults.length; resultIndex += 1) {
-        if (insertResults[resultIndex]?.status !== 'fulfilled') continue;
+      for (
+        let resultIndex = 0;
+        resultIndex < insertResults.length;
+        resultIndex += 1
+      ) {
+        if (insertResults[resultIndex]?.status !== "fulfilled") continue;
         enqueuePromises.push(this.queue.enqueue(batch[resultIndex].id));
       }
 
