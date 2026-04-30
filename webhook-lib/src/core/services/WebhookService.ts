@@ -4,6 +4,8 @@ import type { JobRepository } from '../ports/JobRepository.js';
 import type { QueueDriver } from '../ports/QueueDriver.js';
 import type { SubscriberRepository } from '../ports/SubscriberRepository.js';
 
+const ENQUEUE_BATCH_SIZE = 200;
+
 export class WebhookService {
   constructor(
     private readonly subscribers: SubscriberRepository,
@@ -19,11 +21,12 @@ export class WebhookService {
   async emit<T = unknown>(event: string, payload: T): Promise<void> {
     const subs = await this.subscribers.listByEvent(event);
     if (subs.length === 0) return;
+    const uniqueSubs = Array.from(new Map(subs.map((sub) => [sub.url, sub])).values());
 
     const now = new Date();
-    const enqueuePromises: Promise<void>[] = [];
+    let enqueuePromises: Promise<void>[] = [];
 
-    for (const sub of subs) {
+    for (const sub of uniqueSubs) {
       const id = randomUUID();
       const job = createPendingJob({
         id,
@@ -35,8 +38,15 @@ export class WebhookService {
       });
       await this.jobs.create(job);
       enqueuePromises.push(this.queue.enqueue(id));
+
+      if (enqueuePromises.length >= ENQUEUE_BATCH_SIZE) {
+        await Promise.all(enqueuePromises);
+        enqueuePromises = [];
+      }
     }
 
-    await Promise.all(enqueuePromises);
+    if (enqueuePromises.length > 0) {
+      await Promise.all(enqueuePromises);
+    }
   }
 }

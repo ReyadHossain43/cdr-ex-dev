@@ -78,6 +78,18 @@ export class SqliteJobRepository implements JobRepository {
     return row ? rowToJob(row) : null;
   }
 
+  async claimPending(id: string, now: Date): Promise<boolean> {
+    const changed = this.sqlite.runMutating(
+      `UPDATE webhook_jobs
+         SET status = 'processing', updated_at = ?
+         WHERE id = ?
+           AND status = 'pending'
+           AND (next_attempt_at IS NULL OR next_attempt_at <= ?)`,
+      [now.toISOString(), id, now.toISOString()],
+    );
+    return changed > 0;
+  }
+
   async save(job: WebhookJob): Promise<void> {
     this.sqlite.runMutating(
       `UPDATE webhook_jobs SET

@@ -10,6 +10,10 @@ export class PgJobRepository implements JobRepository {
     throw new Error('PgJobRepository is not implemented yet.');
   }
 
+  async claimPending(_id: string, _now: Date): Promise<boolean> {
+    throw new Error('PgJobRepository is not implemented yet.');
+  }
+
   async save(_job: WebhookJob): Promise<void> {
     throw new Error('PgJobRepository is not implemented yet.');
   }

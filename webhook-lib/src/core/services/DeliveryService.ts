@@ -15,7 +15,8 @@ export class DeliveryService {
   async processJob(jobId: string): Promise<void> {
     const job = await this.jobs.findById(jobId);
     if (!job) return;
-    if (job.status === 'delivered') return;
+    if (job.status === 'delivered' || job.status === 'failed') return;
+    if (job.status === 'processing') return;
 
     const now = new Date();
     if (job.nextAttemptAt && job.nextAttemptAt > now) {
@@ -24,12 +25,9 @@ export class DeliveryService {
       return;
     }
 
-    const processing: WebhookJob = {
-      ...job,
-      status: 'processing',
-      updatedAt: now,
-    };
-    await this.jobs.save(processing);
+    const claimed = await this.jobs.claimPending(jobId, now);
+    if (!claimed) return;
+    const processing: WebhookJob = { ...job, status: 'processing', updatedAt: now };
 
     const result = await this.http.deliver({
       url: processing.subscriberUrl,
