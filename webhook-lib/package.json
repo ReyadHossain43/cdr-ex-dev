@@ -1,0 +1,37 @@
+{
+  "name": "webhook-lib",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Reliable webhook delivery for Node.js with SQLite persistence and optional BullMQ/Redis queue",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "example:receiver": "node --import tsx example/receiver.ts",
+    "example:app": "node --import tsx example/app.ts"
+  },
+  "keywords": [
+    "webhook",
+    "queue",
+    "bullmq",
+    "sqlite"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "bullmq": "^5.34.5",
+    "ioredis": "^5.4.1",
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
