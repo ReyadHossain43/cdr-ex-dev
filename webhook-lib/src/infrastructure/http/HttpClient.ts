@@ -5,6 +5,7 @@ export class HttpClient implements WebhookHttpClient {
     url: string;
     event: string;
     payload: unknown;
+    idempotencyKey: string;
     timeoutMs: number;
   }): Promise<{ ok: boolean; status: number; errorMessage?: string }> {
     const controller = new AbortController();
@@ -15,6 +16,7 @@ export class HttpClient implements WebhookHttpClient {
         headers: {
           'content-type': 'application/json',
           'x-webhook-event': input.event,
+          'x-webhook-idempotency-key': input.idempotencyKey,
         },
         body: JSON.stringify(input.payload),
         signal: controller.signal,

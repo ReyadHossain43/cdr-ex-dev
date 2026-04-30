@@ -67,11 +67,12 @@ Consumers compile against `dist/` types and import `webhook-lib` after `npm pack
 - **Durability of work**: Subscribers and jobs are stored in SQLite (WAL). A crash after `emit` resolves does not lose the job record; pending work is **re-enqueued on startup** (memory queue) or held in Redis (BullMQ) plus SQLite as source of truth for status.
 - **Caller isolation**: `emit` only writes DB rows and pushes queue messages; slow or failing HTTP does not block the caller beyond that fast path.
 - **Retries**: Failed deliveries use exponential backoff with jitter (capped). After `maxDeliveryAttempts`, the job is marked `failed` with the last error stored.
-- **Stuck `processing`**: Jobs left in `processing` (e.g. mid-delivery crash) are reset to `pending` after a staleness window on startup so they can run again.
+- **Lease-based processing**: Workers claim jobs with a renewable lease (`lease_owner` + `lease_expires_at`). If a worker dies, another worker can safely reclaim after lease expiry.
+- **Idempotency signal**: Every delivery sends `x-webhook-idempotency-key` so receivers can deduplicate retries.
 
 ## Non-goals / limits
 
-- **At-most-once vs at-least-once**: Under rare races (duplicate queue messages), a subscriber could see more than one delivery for the same logical event. Strong exactly-once would need idempotency keys on the subscriber side or transactional outbox with stricter locking.
+- **At-most-once vs at-least-once**: This library is at-least-once. Receivers should dedupe using `x-webhook-idempotency-key` for strong side-effect safety.
 - **Ordering**: Not guaranteed across subscribers or retries.
 - **Postgres adapters** under `infrastructure/db/postgres/` are placeholders for a future implementation; use SQLite today.
 

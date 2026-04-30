@@ -2,6 +2,7 @@ import type { WebhookJobStatus } from '../../types/index.js';
 
 export interface WebhookJob {
   id: string;
+  idempotencyKey: string;
   event: string;
   subscriberUrl: string;
   payload: unknown;
@@ -12,10 +13,14 @@ export interface WebhookJob {
   createdAt: Date;
   updatedAt: Date;
   lastError: string | null;
+  leaseOwner: string | null;
+  leaseExpiresAt: Date | null;
+  processingStartedAt: Date | null;
 }
 
 export function createPendingJob(input: {
   id: string;
+  idempotencyKey: string;
   event: string;
   subscriberUrl: string;
   payload: unknown;
@@ -24,6 +29,7 @@ export function createPendingJob(input: {
 }): WebhookJob {
   return {
     id: input.id,
+    idempotencyKey: input.idempotencyKey,
     event: input.event,
     subscriberUrl: input.subscriberUrl,
     payload: input.payload,
@@ -34,5 +40,8 @@ export function createPendingJob(input: {
     createdAt: input.now,
     updatedAt: input.now,
     lastError: null,
+    leaseOwner: null,
+    leaseExpiresAt: null,
+    processingStartedAt: null,
   };
 }

@@ -22,6 +22,7 @@ export class WebhookService {
     const subs = await this.subscribers.listByEvent(event);
     if (subs.length === 0) return;
     const uniqueSubs = Array.from(new Map(subs.map((sub) => [sub.url, sub])).values());
+    const deliveryId = randomUUID();
 
     const now = new Date();
     let enqueuePromises: Promise<void>[] = [];
@@ -30,6 +31,7 @@ export class WebhookService {
       const id = randomUUID();
       const job = createPendingJob({
         id,
+        idempotencyKey: `${deliveryId}:${sub.url}`,
         event,
         subscriberUrl: sub.url,
         payload,

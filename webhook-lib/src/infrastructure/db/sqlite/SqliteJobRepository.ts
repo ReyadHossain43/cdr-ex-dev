@@ -5,6 +5,7 @@ import type { SqliteClient } from './SqliteClient.js';
 
 function rowToJob(row: {
   id: string;
+  idempotency_key: string;
   event: string;
   subscriber_url: string;
   payload_json: string;
@@ -15,9 +16,13 @@ function rowToJob(row: {
   created_at: string;
   updated_at: string;
   last_error: string | null;
+  lease_owner: string | null;
+  lease_expires_at: string | null;
+  processing_started_at: string | null;
 }): WebhookJob {
   return {
     id: String(row.id),
+    idempotencyKey: String(row.idempotency_key),
     event: String(row.event),
     subscriberUrl: String(row.subscriber_url),
     payload: JSON.parse(String(row.payload_json)) as unknown,
@@ -28,6 +33,11 @@ function rowToJob(row: {
     createdAt: new Date(String(row.created_at)),
     updatedAt: new Date(String(row.updated_at)),
     lastError: row.last_error == null ? null : String(row.last_error),
+    leaseOwner: row.lease_owner == null ? null : String(row.lease_owner),
+    leaseExpiresAt: row.lease_expires_at ? new Date(String(row.lease_expires_at)) : null,
+    processingStartedAt: row.processing_started_at
+      ? new Date(String(row.processing_started_at))
+      : null,
   };
 }
 
@@ -37,11 +47,12 @@ export class SqliteJobRepository implements JobRepository {
   async create(job: WebhookJob): Promise<void> {
     this.sqlite.runMutating(
       `INSERT INTO webhook_jobs (
-          id, event, subscriber_url, payload_json, status, attempts, max_attempts,
-          next_attempt_at, created_at, updated_at, last_error
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, idempotency_key, event, subscriber_url, payload_json, status, attempts, max_attempts,
+          next_attempt_at, created_at, updated_at, last_error, lease_owner, lease_expires_at, processing_started_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         job.id,
+        job.idempotencyKey,
         job.event,
         job.subscriberUrl,
         JSON.stringify(job.payload),
@@ -52,6 +63,9 @@ export class SqliteJobRepository implements JobRepository {
         job.createdAt.toISOString(),
         job.updatedAt.toISOString(),
         job.lastError,
+        job.leaseOwner,
+        job.leaseExpiresAt?.toISOString() ?? null,
+        job.processingStartedAt?.toISOString() ?? null,
       ],
     );
   }
@@ -59,6 +73,7 @@ export class SqliteJobRepository implements JobRepository {
   async findById(id: string): Promise<WebhookJob | null> {
     const row = this.sqlite.get<{
       id: string;
+      idempotency_key: string;
       event: string;
       subscriber_url: string;
       payload_json: string;
@@ -69,23 +84,57 @@ export class SqliteJobRepository implements JobRepository {
       created_at: string;
       updated_at: string;
       last_error: string | null;
+      lease_owner: string | null;
+      lease_expires_at: string | null;
+      processing_started_at: string | null;
     }>(
-      `SELECT id, event, subscriber_url, payload_json, status, attempts, max_attempts,
-              next_attempt_at, created_at, updated_at, last_error
+      `SELECT id, idempotency_key, event, subscriber_url, payload_json, status, attempts, max_attempts,
+              next_attempt_at, created_at, updated_at, last_error, lease_owner, lease_expires_at, processing_started_at
        FROM webhook_jobs WHERE id = ?`,
       [id],
     );
     return row ? rowToJob(row) : null;
   }
 
-  async claimPending(id: string, now: Date): Promise<boolean> {
+  async claimPending(id: string, now: Date, leaseOwner: string, leaseMs: number): Promise<boolean> {
+    const leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
     const changed = this.sqlite.runMutating(
       `UPDATE webhook_jobs
-         SET status = 'processing', updated_at = ?
+         SET status = 'processing',
+             updated_at = ?,
+             lease_owner = ?,
+             lease_expires_at = ?,
+             processing_started_at = CASE
+               WHEN status = 'processing' AND processing_started_at IS NOT NULL THEN processing_started_at
+               ELSE ?
+             END
          WHERE id = ?
-           AND status = 'pending'
-           AND (next_attempt_at IS NULL OR next_attempt_at <= ?)`,
-      [now.toISOString(), id, now.toISOString()],
+           AND (
+             (status = 'pending' AND (next_attempt_at IS NULL OR next_attempt_at <= ?))
+             OR (status = 'processing' AND lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
+           )`,
+      [now.toISOString(), leaseOwner, leaseExpiresAt, now.toISOString(), id, now.toISOString(), now.toISOString()],
+    );
+    return changed > 0;
+  }
+
+  async renewLease(id: string, leaseOwner: string, now: Date, leaseMs: number): Promise<boolean> {
+    const leaseExpiresAt = new Date(now.getTime() + leaseMs).toISOString();
+    const changed = this.sqlite.runMutating(
+      `UPDATE webhook_jobs
+         SET lease_expires_at = ?, updated_at = ?
+       WHERE id = ? AND status = 'processing' AND lease_owner = ?`,
+      [leaseExpiresAt, now.toISOString(), id, leaseOwner],
+    );
+    return changed > 0;
+  }
+
+  async releaseLease(id: string, leaseOwner: string): Promise<boolean> {
+    const changed = this.sqlite.runMutating(
+      `UPDATE webhook_jobs
+         SET lease_owner = NULL, lease_expires_at = NULL, processing_started_at = NULL
+       WHERE id = ? AND lease_owner = ?`,
+      [id, leaseOwner],
     );
     return changed > 0;
   }
@@ -93,10 +142,12 @@ export class SqliteJobRepository implements JobRepository {
   async save(job: WebhookJob): Promise<void> {
     this.sqlite.runMutating(
       `UPDATE webhook_jobs SET
-          event = ?, subscriber_url = ?, payload_json = ?, status = ?, attempts = ?,
-          max_attempts = ?, next_attempt_at = ?, updated_at = ?, last_error = ?
+          idempotency_key = ?, event = ?, subscriber_url = ?, payload_json = ?, status = ?, attempts = ?,
+          max_attempts = ?, next_attempt_at = ?, updated_at = ?, last_error = ?, lease_owner = ?,
+          lease_expires_at = ?, processing_started_at = ?
         WHERE id = ?`,
       [
+        job.idempotencyKey,
         job.event,
         job.subscriberUrl,
         JSON.stringify(job.payload),
@@ -106,6 +157,9 @@ export class SqliteJobRepository implements JobRepository {
         job.nextAttemptAt?.toISOString() ?? null,
         job.updatedAt.toISOString(),
         job.lastError,
+        job.leaseOwner,
+        job.leaseExpiresAt?.toISOString() ?? null,
+        job.processingStartedAt?.toISOString() ?? null,
         job.id,
       ],
     );
@@ -128,7 +182,10 @@ export class SqliteJobRepository implements JobRepository {
     const cutoff = new Date(Date.now() - olderThanMs).toISOString();
     return this.sqlite.runMutating(
       `UPDATE webhook_jobs
-         SET status = 'pending', updated_at = ?
+         SET status = 'pending',
+             updated_at = ?,
+             lease_owner = NULL,
+             lease_expires_at = NULL
          WHERE status = 'processing' AND updated_at < ?`,
       [new Date().toISOString(), cutoff],
     );

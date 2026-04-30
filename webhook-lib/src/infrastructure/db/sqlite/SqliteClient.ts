@@ -32,6 +32,22 @@ export class SqliteClient {
     const db = buf ? new SQL.Database(buf) : new SQL.Database();
     const sql = readFileSync(migrationSqlPath, 'utf8');
     db.exec(sql);
+    // Keep older DB files compatible when new columns are added.
+    try {
+      db.exec(`ALTER TABLE webhook_jobs ADD COLUMN idempotency_key TEXT`);
+    } catch {}
+    try {
+      db.exec(`ALTER TABLE webhook_jobs ADD COLUMN lease_owner TEXT`);
+    } catch {}
+    try {
+      db.exec(`ALTER TABLE webhook_jobs ADD COLUMN lease_expires_at TEXT`);
+    } catch {}
+    try {
+      db.exec(`ALTER TABLE webhook_jobs ADD COLUMN processing_started_at TEXT`);
+    } catch {}
+    db.exec(`UPDATE webhook_jobs SET idempotency_key = id WHERE idempotency_key IS NULL`);
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_jobs_idempotency_key ON webhook_jobs (idempotency_key)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_webhook_jobs_lease ON webhook_jobs (status, lease_expires_at)`);
     const client = new SqliteClient(filePath, db);
     await client.persist();
     return client;

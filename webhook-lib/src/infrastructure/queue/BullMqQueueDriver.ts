@@ -25,6 +25,7 @@ export class BullMqQueueDriver implements QueueDriver {
       'deliver',
       { jobId },
       {
+        jobId,
         delay: delayMs,
         removeOnComplete: true,
         attempts: 1,
@@ -60,7 +61,7 @@ export class BullMqQueueDriver implements QueueDriver {
       ids.map((jobId) => ({
         name: 'deliver',
         data: { jobId },
-        opts: { removeOnComplete: true, attempts: 1 },
+        opts: { jobId, removeOnComplete: true, attempts: 1 },
       })),
     );
   }

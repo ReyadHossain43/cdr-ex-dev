@@ -10,7 +10,15 @@ export class PgJobRepository implements JobRepository {
     throw new Error('PgJobRepository is not implemented yet.');
   }
 
-  async claimPending(_id: string, _now: Date): Promise<boolean> {
+  async claimPending(_id: string, _now: Date, _leaseOwner: string, _leaseMs: number): Promise<boolean> {
+    throw new Error('PgJobRepository is not implemented yet.');
+  }
+
+  async renewLease(_id: string, _leaseOwner: string, _now: Date, _leaseMs: number): Promise<boolean> {
+    throw new Error('PgJobRepository is not implemented yet.');
+  }
+
+  async releaseLease(_id: string, _leaseOwner: string): Promise<boolean> {
     throw new Error('PgJobRepository is not implemented yet.');
   }
 
